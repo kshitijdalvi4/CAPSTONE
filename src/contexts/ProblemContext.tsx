@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
+import nlpService from '../services/nlpService';
 
 interface TestCase {
   input: string;
@@ -34,84 +35,79 @@ interface ProblemContextType {
   mcqQuestions: MCQQuestion[];
   currentMCQIndex: number;
   setCurrentProblem: (problem: Problem) => void;
+  loadProblem: (problemId: string) => Promise<void>;
+  generateMCQForProblem: (topic: string) => Promise<void>;
   nextMCQ: () => void;
   resetMCQ: () => void;
+  loading: boolean;
 }
 
 const ProblemContext = createContext<ProblemContextType | undefined>(undefined);
 
-const sampleProblem: Problem = {
-  id: '1',
-  title: 'Two Sum',
-  difficulty: 'Easy',
-  description: `Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.
-
-You may assume that each input would have exactly one solution, and you may not use the same element twice.
-
-You can return the answer in any order.`,
-  inputFormat: 'nums = [2,7,11,15], target = 9',
-  outputFormat: '[0,1]',
-  constraints: [
-    '2 ≤ nums.length ≤ 10⁴',
-    '-10⁹ ≤ nums[i] ≤ 10⁹',
-    '-10⁹ ≤ target ≤ 10⁹',
-    'Only one valid answer exists.'
-  ],
-  testCases: [
-    {
-      input: 'nums = [2,7,11,15], target = 9',
-      output: '[0,1]',
-      explanation: 'Because nums[0] + nums[1] == 9, we return [0, 1].'
-    },
-    {
-      input: 'nums = [3,2,4], target = 6',
-      output: '[1,2]'
-    },
-    {
-      input: 'nums = [3,3], target = 6',
-      output: '[0,1]'
-    }
-  ],
-  tags: ['Array', 'Hash Table'],
-  hints: [
-    'A really brute force way would be to search for all possible pairs of numbers but that would be too slow.',
-    'Try using a hash table to store the complement of each number.',
-    'The complement of a number x is target - x. Check if the complement exists in the hash table.',
-    'You can solve this in O(n) time with a single pass through the array using a hash map.'
-  ],
-  optimalSolution: `def twoSum(nums, target):
-    num_map = {}
-    for i, num in enumerate(nums):
-        complement = target - num
-        if complement in num_map:
-            return [num_map[complement], i]
-        num_map[num] = i
-    return []`
-};
-
-const sampleMCQs: MCQQuestion[] = [
-  {
-    id: '1',
-    question: 'What is the most suitable data structure for solving the Two Sum problem efficiently?',
-    options: ['Array', 'Linked List', 'Hash Table', 'Stack'],
-    correctAnswer: 2,
-    explanation: 'Hash Table provides O(1) average time complexity for lookups, making it ideal for finding complements.',
-    category: 'data-structure'
-  },
-  {
-    id: '2',
-    question: 'What is the time complexity of the optimal solution?',
-    options: ['O(n²)', 'O(n log n)', 'O(n)', 'O(1)'],
-    correctAnswer: 2,
-    explanation: 'Using a hash table, we can solve this in O(n) time by making a single pass through the array.',
-    category: 'algorithm'
-  }
-];
 
 export function ProblemProvider({ children }: { children: ReactNode }) {
-  const [currentProblem, setCurrentProblem] = useState<Problem | null>(sampleProblem);
-  const [mcqQuestions] = useState<MCQQuestion[]>(sampleMCQs);
+  const [currentProblem, setCurrentProblem] = useState<Problem | null>(null);
+  const [mcqQuestions, setMcqQuestions] = useState<MCQQuestion[]>([]);
   const [currentMCQIndex, setCurrentMCQIndex] = useState(0);
+  const [loading, setLoading] = useState(false);
+
+  const loadProblem = async (problemId: string) => {
+    try {
+      setLoading(true);
+      const result = await nlpService.getProblemById(problemId);
+      
+      if (result.success) {
+        // Convert MongoDB problem to our Problem interface
+        const problem: Problem = {
+          id: result.problem._id,
+          title: result.problem.title,
+          difficulty: result.problem.difficulty,
+          description: result.problem.description,
+          inputFormat: result.problem.inputFormat,
+          outputFormat: result.problem.outputFormat,
+          constraints: result.problem.constraints,
+          testCases: result.problem.testCases,
+          tags: result.problem.tags,
+          hints: result.problem.hints,
+          optimalSolution: result.problem.optimalSolution || ''
+        };
+        
+        setCurrentProblem(problem);
+        
+        // Generate MCQ questions for this problem
+        await generateMCQForProblem(problem.tags[0] || 'general');
+      }
+    } catch (error) {
+      console.error('Failed to load problem:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const generateMCQForProblem = async (topic: string) => {
+    try {
+      const result = await nlpService.generateMCQQuestions(topic, 'beginner', 3);
+      
+      if (result.success) {
+        // Convert to our MCQQuestion interface
+        const questions: MCQQuestion[] = result.questions.map((q: any) => ({
+          id: q._id,
+          question: q.question,
+          options: q.options,
+          correctAnswer: q.correctAnswer,
+          explanation: q.explanation,
+          category: q.category
+        }));
+        
+        setMcqQuestions(questions);
+        setCurrentMCQIndex(0);
+      }
+    } catch (error) {
+      console.error('Failed to generate MCQ questions:', error);
+      // Fallback to empty questions
+      setMcqQuestions([]);
+    }
+  };
 
   const nextMCQ = () => {
     setCurrentMCQIndex(prev => Math.min(prev + 1, mcqQuestions.length - 1));
@@ -127,8 +123,11 @@ export function ProblemProvider({ children }: { children: ReactNode }) {
       mcqQuestions,
       currentMCQIndex,
       setCurrentProblem,
+      loadProblem,
+      generateMCQForProblem,
       nextMCQ,
-      resetMCQ
+      resetMCQ,
+      loading
     }}>
       {children}
     </ProblemContext.Provider>

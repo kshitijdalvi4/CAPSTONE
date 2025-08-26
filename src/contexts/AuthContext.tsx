@@ -21,15 +21,71 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const API_URL = 'http://localhost:5001';
 
+// Helper function to get auth headers
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('token');
+  return {
+    'Content-Type': 'application/json',
+    ...(token && { 'Authorization': `Bearer ${token}` })
+  };
+};
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check for a user in local storage when the app loads
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
+    // Check for a user and validate token when the app loads
+    const validateToken = async () => {
+      const storedUser = localStorage.getItem('user');
+      const token = localStorage.getItem('token');
+      
+      if (storedUser && token) {
+        try {
+          // Validate token by making a request to protected route
+          const response = await fetch(`${API_URL}/api/profile`, {
+            headers: getAuthHeaders()
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            setUser(data.user);
+          } else {
+            // Token is invalid, clear storage
+            localStorage.removeItem('user');
+            localStorage.removeItem('token');
+          }
+        } catch (error) {
+          console.error('Token validation failed:', error);
+          localStorage.removeItem('user');
+          localStorage.removeItem('token');
+        }
+      }
+      setLoading(false);
+    };
+    
+    validateToken();
+  }, []);
+
+  // Add method to get auth headers for API calls
+  const getHeaders = () => getAuthHeaders();
+
+  return (
+    <AuthContext.Provider value={{ user, loading, login, signup, logout, getHeaders }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+// Update the interface to include getHeaders
+interface AuthContextType {
+  user: User | null;
+  loading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  signup: (name: string, email: string, password: string) => Promise<void>;
+  logout: () => void;
+  getHeaders: () => Record<string, string>;
+}
     }
     setLoading(false);
   }, []);
