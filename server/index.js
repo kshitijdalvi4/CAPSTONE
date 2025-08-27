@@ -25,6 +25,34 @@ mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('MongoDB connected successfully'))
   .catch(err => console.error('MongoDB connection error:', err));
 
+// --- Create Demo User ---
+const createDemoUser = async () => {
+  try {
+    const existingDemo = await User.findOne({ email: 'demo@codeoptimizer.com' });
+    if (!existingDemo) {
+      const hashedPassword = await bcrypt.hash('demo123', 10);
+      const demoUser = new User({
+        name: 'Demo User',
+        email: 'demo@codeoptimizer.com',
+        password: hashedPassword,
+        avatar: 'https://i.pravatar.cc/150?u=demo@codeoptimizer.com',
+        experience: 'intermediate',
+        solvedProblems: 15,
+        accuracy: 78
+      });
+      await demoUser.save();
+      console.log('✅ Demo user created successfully');
+    }
+  } catch (error) {
+    console.error('Error creating demo user:', error);
+  }
+};
+
+// Create demo user after MongoDB connection
+mongoose.connection.once('open', () => {
+  createDemoUser();
+});
+
 // --- API Routes ---
 app.post('/api/signup', async (req, res) => {
   const { name, email, password } = req.body;
