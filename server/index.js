@@ -8,6 +8,7 @@ import bcrypt from 'bcryptjs';
 import mongoose from 'mongoose';
 import User from './models/User.js';
 import nlpRoutes from './routes/nlp.js';
+const uploadRoutes = require('./upload/index.js');
 
 const app = express();
 const SECRET_KEY = process.env.SECRET_KEY || 'your-very-secret-key';
@@ -18,6 +19,9 @@ app.use(express.json());
 
 // --- NLP Routes ---
 app.use('/api/nlp', nlpRoutes);
+
+// --- Upload Routes ---
+app.use('/api/upload', uploadRoutes);
 
 // --- MongoDB Connection ---
 mongoose.connect(process.env.MONGO_URI)

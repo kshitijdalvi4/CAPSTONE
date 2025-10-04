@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const ModelLoader = require('./model_loader');
 
 class AutocompleteEngine {
     constructor(questionsDb) {
@@ -203,12 +204,13 @@ class LocalKnowledgeBase {
 }
 
 class LocalQASystem {
-    constructor(kb) {
+    constructor(kb, modelLoader = null) {
         this.kb = kb;
+        this.modelLoader = modelLoader;
         this.queryCount = 0;
     }
 
-    answerQuestion(userQuery) {
+    async answerQuestion(userQuery) {
         this.queryCount++;
         const startTime = Date.now();
 
@@ -239,6 +241,34 @@ class LocalQASystem {
             };
         }
 
+        // Try to use the loaded model if available
+        if (this.modelLoader && this.modelLoader.isReady()) {
+            try {
+                const prediction = await this.modelLoader.predict(userQuery, bestMatch.options);
+                
+                return {
+                    status: 'model_prediction',
+                    original_query: userQuery,
+                    matched_question: bestMatch.question,
+                    match_score: bestMatch.score,
+                    answer: prediction.predicted_answer,
+                    answer_index: prediction.predicted_idx,
+                    confidence: prediction.confidence,
+                    all_probabilities: prediction.all_probabilities,
+                    options: bestMatch.options,
+                    explanation: bestMatch.explanation,
+                    topic: bestMatch.topic,
+                    difficulty: bestMatch.difficulty,
+                    inference_time: prediction.inference_time,
+                    suggestions: matches.slice(1, 4),
+                    total_time: (Date.now() - startTime) / 1000
+                };
+            } catch (error) {
+                console.error('Model prediction error:', error);
+                // Fall back to semantic matching
+            }
+        }
+
         // For semantic matches, return the best match with confidence based on similarity
         return {
             status: 'semantic_match',
@@ -259,19 +289,27 @@ class LocalQASystem {
 }
 
 // Initialize the system
-function initializeMCQSystem() {
+function initializeMCQSystem(customJsonPath = null, modelPath = null) {
     try {
-        const jsonPath = path.join(__dirname, 'data', 'DSA_Arrays1.json');
+        const jsonPath = customJsonPath || path.join(__dirname, 'data', 'DSA_Arrays1.json');
         const kb = new LocalKnowledgeBase(jsonPath);
         const autocomplete = new AutocompleteEngine(kb.questionsDb);
-        const qaSystem = new LocalQASystem(kb);
+        
+        let modelLoader = null;
+        if (modelPath) {
+            modelLoader = new ModelLoader();
+            // Model loading will be done separately via API call
+        }
+        
+        const qaSystem = new LocalQASystem(kb, modelLoader);
         
         console.log('✅ MCQ System initialized successfully');
         
         return {
             kb,
             autocomplete,
-            qaSystem
+            qaSystem,
+            modelLoader
         };
     } catch (error) {
         console.error('❌ Failed to initialize MCQ system:', error.message);
@@ -283,5 +321,6 @@ module.exports = {
     AutocompleteEngine,
     LocalKnowledgeBase,
     LocalQASystem,
+    ModelLoader,
     initializeMCQSystem
 };
