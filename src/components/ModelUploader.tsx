@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, CheckCircle, AlertCircle, Database, Brain, FileText } from 'lucide-react';
+import { Upload, CircleCheck as CheckCircle, CircleAlert as AlertCircle, Database, Brain, FileText } from 'lucide-react';
 import axios from 'axios';
 
 interface SystemStatus {
