@@ -24,15 +24,6 @@ export default function LoginPage() {
     }
   };
 
-  const handleDemoLogin = async () => {
-    setError('');
-    try {
-      await login('demo@codeoptimizer.com', 'demo123');
-    } catch (err: any) {
-      setError('Demo login failed. Please try again.');
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 border border-gray-700">
@@ -91,20 +82,6 @@ export default function LoginPage() {
             {isLogin ? 'Sign In' : 'Sign Up'}
           </button>
         </form>
-
-        {/* Demo Login */}
-        <div className="mt-6 pt-6 border-t border-gray-600">
-          <div className="text-center mb-4">
-            <p className="text-gray-400 text-sm">Want to try without signing up?</p>
-          </div>
-          <button
-            onClick={handleDemoLogin}
-            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-3 rounded-lg transition-all duration-200 flex items-center justify-center"
-          >
-            <Code2 className="h-5 w-5 mr-2" />
-            Try Demo Account
-          </button>
-        </div>
 
         <div className="mt-6 text-center">
           <button onClick={() => setIsLogin(!isLogin)} className="text-sm text-blue-400 hover:underline">

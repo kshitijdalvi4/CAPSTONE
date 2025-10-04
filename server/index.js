@@ -7,8 +7,6 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import mongoose from 'mongoose';
 import User from './models/User.js';
-import nlpRoutes from './routes/nlp.js';
-import { authenticateToken } from './middleware/auth.js';
 
 const app = express();
 const SECRET_KEY = process.env.SECRET_KEY || 'your-very-secret-key';
@@ -17,41 +15,10 @@ const SECRET_KEY = process.env.SECRET_KEY || 'your-very-secret-key';
 app.use(cors({ origin: 'http://localhost:5173' }));
 app.use(express.json());
 
-// --- Routes ---
-app.use('/api/nlp', nlpRoutes);
-
 // --- MongoDB Connection ---
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('MongoDB connected successfully'))
   .catch(err => console.error('MongoDB connection error:', err));
-
-// --- Create Demo User ---
-const createDemoUser = async () => {
-  try {
-    const existingDemo = await User.findOne({ email: 'demo@codeoptimizer.com' });
-    if (!existingDemo) {
-      const hashedPassword = await bcrypt.hash('demo123', 10);
-      const demoUser = new User({
-        name: 'Demo User',
-        email: 'demo@codeoptimizer.com',
-        password: hashedPassword,
-        avatar: 'https://i.pravatar.cc/150?u=demo@codeoptimizer.com',
-        experience: 'intermediate',
-        solvedProblems: 15,
-        accuracy: 78
-      });
-      await demoUser.save();
-      console.log('✅ Demo user created successfully');
-    }
-  } catch (error) {
-    console.error('Error creating demo user:', error);
-  }
-};
-
-// Create demo user after MongoDB connection
-mongoose.connection.once('open', () => {
-  createDemoUser();
-});
 
 // --- API Routes ---
 app.post('/api/signup', async (req, res) => {
@@ -97,16 +64,6 @@ app.post('/api/login', async (req, res) => {
     res.status(200).json({ token, user });
   } catch (error) {
     res.status(500).json({ message: 'Server error during login.' });
-  }
-});
-
-// Protected route example
-app.get('/api/profile', authenticateToken, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id).select('-password');
-    res.json({ user });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error' });
   }
 });
 
