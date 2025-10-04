@@ -1,12 +1,21 @@
-const express = require('express');
-const { initializeMCQSystem } = require('../nlp/mcq_system');
-const path = require('path');
-const fs = require('fs');
+import express from 'express';
+import { initializeMCQSystem } from '../nlp/mcq_system.js';
+import path from 'path';
+import fs from 'fs';
+import { spawn } from 'child_process';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 const router = express.Router();
 
 // Initialize Node.js NLP system
 let mcqSystem = null;
 let customDataLoaded = false;
+
+const PYTHON_SCRIPT = path.join(__dirname, '..', '..', 'NLP', 'copy_of_capstone_nlp.py');
 
 function initializeMCQ(jsonPath = null, modelPath = null) {
   try {
@@ -134,7 +143,10 @@ function runPythonScript(command, args = []) {
 // Initialize NLP system
 router.post('/initialize', async (req, res) => {
   try {
-    await runPythonScript('init');
+    // Initialize the Node.js MCQ system instead of Python
+    if (!mcqSystem) {
+      initializeMCQ();
+    }
     res.json({ success: true, message: 'NLP system initialized successfully' });
   } catch (error) {
     console.error('NLP initialization error:', error);
@@ -241,6 +253,4 @@ router.get('/random-questions', async (req, res) => {
   }
 });
 
-module.exports = router;
-
-export default runPythonScript
+export default router;
