@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Lightbulb, Brain, Clock, Target, Sparkles, CheckCircle } from 'lucide-react';
+import { Send, Lightbulb, Brain, Clock, Target, Sparkles, CircleCheck as CheckCircle } from 'lucide-react';
 import axios from 'axios';
 
 interface MCQResult {
