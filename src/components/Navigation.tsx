@@ -28,6 +28,17 @@ export default function Navigation() {
               Dashboard
             </button>
             <button
+              onClick={() => navigate('/solve/sample-1')}
+              className={`flex items-center px-3 py-2 rounded-lg transition-colors ${
+                location.pathname.startsWith('/solve') 
+                  ? 'bg-blue-600 text-white' 
+                  : 'text-gray-300 hover:text-white hover:bg-gray-700'
+              }`}
+            >
+              <Code2 className="h-4 w-4 mr-2" />
+              Solve Problems
+            </button>
+            <button
               className="flex items-center px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-700 transition-colors"
             >
               <BarChart3 className="h-4 w-4 mr-2" />
