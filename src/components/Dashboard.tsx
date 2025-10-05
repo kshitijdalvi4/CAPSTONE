@@ -116,13 +116,22 @@ export default function Dashboard() {
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-8 text-white">
         <h1 className="text-3xl font-bold mb-2">Welcome to CodeOptimizer!</h1>
         <p className="text-blue-100 text-lg mb-4">Ready to optimize your coding skills today?</p>
-        <button
-          onClick={() => navigate('/solve/sample-1')}
-          className="flex items-center px-6 py-3 bg-white/20 hover:bg-white/30 text-white font-semibold rounded-lg transition-colors"
-        >
-          <Play className="h-5 w-5 mr-2" />
-          Start Solving Problems
-        </button>
+        <div className="flex space-x-4">
+          <button
+            onClick={() => navigate('/solve/sample-1')}
+            className="flex items-center px-6 py-3 bg-white/20 hover:bg-white/30 text-white font-semibold rounded-lg transition-colors"
+          >
+            <Play className="h-5 w-5 mr-2" />
+            Start Solving Problems
+          </button>
+          <button
+            onClick={() => navigate('/chat')}
+            className="flex items-center px-6 py-3 bg-white/20 hover:bg-white/30 text-white font-semibold rounded-lg transition-colors"
+          >
+            <MessageSquare className="h-5 w-5 mr-2" />
+            Ask DSA Questions
+          </button>
+        </div>
       </div>
 
       {/* Stats Grid */}
