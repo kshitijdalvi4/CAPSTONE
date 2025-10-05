@@ -1,46 +1,58 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
-import { Database, MessageCircle, Home } from 'lucide-react';
-import MCQChat from './components/MCQChat';
-import ModelUploader from './components/ModelUploader';
+import { Routes, Route, BrowserRouter, Navigate } from 'react-router-dom';
+import LoginPage from './components/LoginPage';
+import Dashboard from './components/Dashboard';
+import ProblemSolver from './components/ProblemSolver';
+import Navigation from './components/Navigation';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ProblemProvider } from './contexts/ProblemContext';
+
+function AppContent() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <p className="text-white text-lg">Loading...</p>
+      </div>
+    );
+  }
+
+  return (
+    <Routes>
+      {user ? (
+        <Route
+          path="*"
+          element={
+            <div className="min-h-screen bg-gray-900">
+              <Navigation />
+              <Routes>
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/solve/:problemId" element={<ProblemSolver />} />
+                <Route path="*" element={<Navigate to="/dashboard" />} />
+              </Routes>
+            </div>
+          }
+        />
+      ) : (
+        <>
+          <Route path="/" element={<LoginPage />} />
+          <Route path="*" element={<Navigate to="/" />} />
+        </>
+      )}
+    </Routes>
+  );
+}
 
 function App() {
   return (
-    <Router>
-      <div className="min-h-screen bg-gray-900">
-        {/* Navigation */}
-        <nav className="bg-gray-800 border-b border-gray-700 px-6 py-4">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <div className="flex items-center space-x-8">
-              <h1 className="text-xl font-bold text-white">CodeOptimizer NLP</h1>
-              
-              <div className="flex space-x-4">
-                <Link
-                  to="/"
-                  className="flex items-center px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-700 transition-colors"
-                >
-                  <MessageCircle className="h-4 w-4 mr-2" />
-                  MCQ Chat
-                </Link>
-                <Link
-                  to="/upload"
-                  className="flex items-center px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-700 transition-colors"
-                >
-                  <Database className="h-4 w-4 mr-2" />
-                  Upload Model
-                </Link>
-              </div>
-            </div>
-          </div>
-        </nav>
-
-        {/* Routes */}
-        <Routes>
-          <Route path="/" element={<MCQChat />} />
-          <Route path="/upload" element={<ModelUploader />} />
-        </Routes>
-      </div>
-    </Router>
+    <AuthProvider>
+      <ProblemProvider>
+        <BrowserRouter>
+          <AppContent />
+        </BrowserRouter>
+      </ProblemProvider>
+    </AuthProvider>
   );
 }
 
