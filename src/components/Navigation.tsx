@@ -1,5 +1,5 @@
 import React from 'react';
-import { Code2, Home, BarChart3 } from 'lucide-react';
+import { Code as Code2, Home, BarChart3 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 export default function Navigation() {
