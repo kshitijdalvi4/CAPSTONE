@@ -2,9 +2,16 @@ const API_URL = 'http://localhost:5001/api/nlp';
 
 class NLPService {
   private getHeaders(): Record<string, string> {
-    return {
+    const token = localStorage.getItem('token');
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json'
     };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    return headers;
   }
 
   async initializeSystem(): Promise<{ success: boolean; message: string; chunksCount?: number }> {

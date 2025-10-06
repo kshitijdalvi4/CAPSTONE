@@ -32,7 +32,7 @@ export default function DSAChat() {
   const debounceTimer = useRef<NodeJS.Timeout>();
 
   // Your Flask API URL - update this to match your backend
-  const API_URL = 'http://localhost:5000/api';
+  const API_URL = 'http://localhost:5001/api/nlp';
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
