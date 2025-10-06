@@ -8,7 +8,7 @@ import bcrypt from 'bcryptjs';
 import mongoose from 'mongoose';
 import User from './models/User.js';
 import nlpRoutes from './routes/nlp.js';
-import uploadRoutes from './upload/index.js';
+const uploadRoutes = require('./upload/index.js');
 
 const app = express();
 const SECRET_KEY = process.env.SECRET_KEY || 'your-very-secret-key';
