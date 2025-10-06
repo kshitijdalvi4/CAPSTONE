@@ -7,6 +7,8 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import mongoose from 'mongoose';
 import User from './models/User.js';
+import nlpRoutes from './routes/nlp.js';
+import { authenticateToken } from './middleware/auth.js';
 
 const app = express();
 const SECRET_KEY = process.env.SECRET_KEY || 'your-very-secret-key';
@@ -14,6 +16,9 @@ const SECRET_KEY = process.env.SECRET_KEY || 'your-very-secret-key';
 // --- Middleware ---
 app.use(cors({ origin: 'http://localhost:5173' }));
 app.use(express.json());
+
+// --- Routes ---
+app.use('/api/nlp', nlpRoutes);
 
 // --- MongoDB Connection ---
 mongoose.connect(process.env.MONGO_URI)
@@ -64,6 +69,16 @@ app.post('/api/login', async (req, res) => {
     res.status(200).json({ token, user });
   } catch (error) {
     res.status(500).json({ message: 'Server error during login.' });
+  }
+});
+
+// Protected route example
+app.get('/api/profile', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password');
+    res.json({ user });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
