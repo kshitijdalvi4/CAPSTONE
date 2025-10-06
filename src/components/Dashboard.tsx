@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trophy, Target, Clock, TrendingUp, Code as Code2, Brain, Zap, Play, MessageSquare } from 'lucide-react';
+import { Trophy, Target, Clock, TrendingUp, Code as Code2, Brain, Zap, Play } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import nlpService from '../services/nlpService';
@@ -10,7 +10,6 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [recommendedProblems, setRecommendedProblems] = useState([]);
   const [recommendations, setRecommendations] = useState(null);
-  const [flaskAvailable, setFlaskAvailable] = useState(false);
 
   useEffect(() => {
     initializeSystem();
@@ -20,30 +19,28 @@ export default function Dashboard() {
     try {
       setLoading(true);
       
-      // Check if Flask server is available
-      try {
-        const response = await fetch('http://localhost:5000/api/health');
-        if (response.ok) {
-          setFlaskAvailable(true);
-          setIsInitialized(true);
-        }
-      } catch (error) {
-        console.log('Flask server not available, using mock data');
-        setFlaskAvailable(false);
+      // Initialize NLP system
+      const initResult = await nlpService.initializeSystem();
+      if (initResult.success) {
         setIsInitialized(true);
-      }
-      
-      // Get basic recommendations
-      const recsResult = await nlpService.getRecommendations({
-        accuracy: 0,
-        solvedProblems: 0
-      });
-      if (recsResult.success) {
-        setRecommendations(recsResult.recommendations);
+        
+        // Get recommended problems
+        const problemsResult = await nlpService.getProblems({ limit: 3 });
+        if (problemsResult.success) {
+          setRecommendedProblems(problemsResult.problems);
+        }
+        
+        // Get personalized recommendations
+        const recsResult = await nlpService.getRecommendations({
+          accuracy: 0,
+          solvedProblems: 0
+        });
+        if (recsResult.success) {
+          setRecommendations(recsResult.recommendations);
+        }
       }
     } catch (error) {
       console.error('Failed to initialize system:', error);
-      setIsInitialized(true); // Still allow app to work
     } finally {
       setLoading(false);
     }
@@ -105,11 +102,11 @@ export default function Dashboard() {
 
       {/* System Status */}
       {!loading && (
-        <div className={`rounded-xl p-4 ${flaskAvailable ? 'bg-green-900/20 border border-green-600/30' : 'bg-yellow-900/20 border border-yellow-600/30'}`}>
+        <div className={`rounded-xl p-4 ${isInitialized ? 'bg-green-900/20 border border-green-600/30' : 'bg-red-900/20 border border-red-600/30'}`}>
           <div className="flex items-center space-x-2">
-            <div className={`w-3 h-3 rounded-full ${flaskAvailable ? 'bg-green-400' : 'bg-yellow-400'}`}></div>
-            <span className={`text-sm ${flaskAvailable ? 'text-green-400' : 'text-yellow-400'}`}>
-              Flask Server: {flaskAvailable ? 'Connected' : 'Not Available (Chat will use mock responses)'}
+            <div className={`w-3 h-3 rounded-full ${isInitialized ? 'bg-green-400' : 'bg-red-400'}`}></div>
+            <span className={`text-sm ${isInitialized ? 'text-green-400' : 'text-red-400'}`}>
+              NLP System: {isInitialized ? 'Ready' : 'Not Initialized'}
             </span>
           </div>
         </div>

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, MessageSquare } from 'lucide-react';
+import { Send, Bot, User, Lightbulb, Clock, Target, Zap, MessageSquare } from 'lucide-react';
 
 interface Message {
   id: string;
@@ -19,7 +19,7 @@ export default function DSAChat() {
     {
       id: '1',
       type: 'bot',
-      content: 'Welcome to your AI-powered DSA assistant! I can help you understand complex algorithms, data structures, and solve coding problems. Try asking me anything!',
+      content: 'Hello! I\'m your DSA assistant. Ask me anything about Data Structures and Algorithms!',
       timestamp: new Date()
     }
   ]);
@@ -31,7 +31,7 @@ export default function DSAChat() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const debounceTimer = useRef<NodeJS.Timeout>();
 
-  // Update this to match your Flask server URL
+  // Your Flask API URL - update this to match your backend
   const API_URL = 'http://localhost:5000/api';
 
   const scrollToBottom = () => {
@@ -75,7 +75,7 @@ export default function DSAChat() {
         clearTimeout(debounceTimer.current);
       }
     };
-  }, [inputValue, API_URL]);
+  }, [inputValue]);
 
   const addWord = (word: string) => {
     const words = inputValue.split(' ');
@@ -142,7 +142,7 @@ export default function DSAChat() {
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'bot',
-        content: 'Sorry, I couldn\'t connect to the server. Please make sure the Flask server is running on port 5000 and try again.',
+        content: 'Sorry, I couldn\'t connect to the server. Please make sure the Flask server is running and try again.',
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMessage]);
@@ -159,211 +159,15 @@ export default function DSAChat() {
   };
 
   const formatMessage = (content: string) => {
-    // For bot messages, we'll handle formatting in the response display
-    return <div className="text-gray-300">{content}</div>;
-  };
-
-  const renderBotResponse = (message: Message) => {
-    if (!message.data) {
-      return formatMessage(message.content);
-    }
-
-    const data = message.data;
-    
-    return (
-      <div className="space-y-4">
-        {/* Question Match Card */}
-        <div className="bg-gray-700 rounded-lg p-4 border-l-4 border-blue-500">
-          <div className="flex items-center mb-2">
-            <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
-            <span className="text-blue-400 font-medium text-sm">QUESTION MATCH</span>
-          </div>
-          <p className="text-gray-200 text-sm leading-relaxed">
-            {data.matched_question || data.question}
-          </p>
-        </div>
-
-        {/* Answer Card */}
-        <div className="bg-gray-700 rounded-lg p-4 border-l-4 border-green-500">
-          <div className="flex items-center mb-2">
-            <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-            <span className="text-green-400 font-medium text-sm">ANSWER</span>
-          </div>
-          <p className="text-gray-200 font-medium">
-            {data.answer}
-          </p>
-        </div>
-
-        {/* Explanation Card */}
-        <div className="bg-gray-700 rounded-lg p-4 border-l-4 border-purple-500">
-          <div className="flex items-center mb-2">
-            <div className="w-2 h-2 bg-purple-500 rounded-full mr-2"></div>
-            <span className="text-purple-400 font-medium text-sm">EXPLANATION</span>
-          </div>
-          <p className="text-gray-200 text-sm leading-relaxed">
-            {data.explanation}
-          </p>
-        </div>
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-gray-700 rounded-lg p-3">
-            <div className="text-xs text-gray-400 mb-1">Match Score</div>
-            <div className="text-white font-semibold">{data.match_score ? `${(data.match_score * 100).toFixed(0)}%` : 'N/A'}</div>
-          </div>
-          <div className="bg-gray-700 rounded-lg p-3">
-            <div className="text-xs text-gray-400 mb-1">Confidence</div>
-            <div className="text-white font-semibold">{(data.confidence * 100).toFixed(1)}%</div>
-          </div>
-          <div className="bg-gray-700 rounded-lg p-3">
-            <div className="text-xs text-gray-400 mb-1">Topic</div>
-            <div className="text-white font-semibold">{data.topic}</div>
-          </div>
-          <div className="bg-gray-700 rounded-lg p-3">
-            <div className="text-xs text-gray-400 mb-1">Difficulty</div>
-            <div className="text-white font-semibold">{data.difficulty}</div>
-          </div>
-        </div>
-
-        {/* Inference Time */}
-        {data.inference_time && (
-          <div className="bg-gray-700 rounded-lg p-3">
-            <div className="text-xs text-gray-400 mb-1">Inference Time</div>
-            <div className="text-white font-semibold">{(data.inference_time * 1000).toFixed(1)}ms</div>
-          </div>
-        )}
-
-        {/* Model Confidence Distribution */}
-        {data.all_probabilities && data.options && (
-          <div className="bg-gray-700 rounded-lg p-4">
-            <div className="flex items-center mb-3">
-              <div className="w-2 h-2 bg-yellow-500 rounded-full mr-2"></div>
-              <span className="text-yellow-400 font-medium text-sm">MODEL CONFIDENCE DISTRIBUTION</span>
-            </div>
-            <div className="space-y-3">
-              {data.options.map((option: string, index: number) => {
-                const probability = data.all_probabilities[index];
-                const isCorrect = index === data.answer_index;
-                return (
-                  <div key={index} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        {isCorrect && <span className="text-green-400 text-sm">✓</span>}
-                        <span className="text-gray-300 text-sm">
-                          {index + 1}. {option.substring(0, 50)}...
-                        </span>
-                      </div>
-                      <span className="text-gray-400 text-sm font-medium">
-                        {(probability * 100).toFixed(1)}%
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-600 rounded-full h-2">
-                      <div 
-                        className={`h-2 rounded-full transition-all duration-500 ${
-                          isCorrect ? 'bg-green-500' : 'bg-blue-500'
-                        }`}
-                        style={{ width: `${probability * 100}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderWelcomeMessage = () => {
-    if (messages.length > 1) return null;
-
-    const exampleQuestions = [
-      {
-        question: "What is the time complexity of binary search?",
-        category: "Time Complexity",
-        icon: "⏱️"
-      },
-      {
-        question: "How does hash table collision resolution work?",
-        category: "Hash Tables", 
-        icon: "🔗"
-      },
-      {
-        question: "Explain the difference between BFS and DFS",
-        category: "Graph Algorithms",
-        icon: "🌐"
-      },
-      {
-        question: "What is dynamic programming?",
-        category: "Algorithms",
-        icon: "🧠"
-      },
-      {
-        question: "How do you detect a cycle in a linked list?",
-        category: "Linked Lists",
-        icon: "🔄"
-      },
-      {
-        question: "What is the space complexity of merge sort?",
-        category: "Sorting",
-        icon: "📊"
+    return content.split('\n').map((line, index) => {
+      if (line.startsWith('**') && line.endsWith('**')) {
+        return <div key={index} className="font-semibold text-white mb-2">{line.slice(2, -2)}</div>;
       }
-    ];
-
-    return (
-      <div className="max-w-4xl mx-auto p-6 space-y-6">
-        {/* Welcome Header */}
-        <div className="text-center space-y-4">
-          <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto">
-            <MessageSquare className="h-8 w-8 text-white" />
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold text-white mb-2">DSA Assistant</h2>
-            <p className="text-gray-400 max-w-2xl mx-auto">
-              Get instant answers to your Data Structures and Algorithms questions. 
-              I can help with time complexity, algorithms, data structures, and coding concepts.
-            </p>
-          </div>
-        </div>
-
-        {/* Example Questions Grid */}
-        <div>
-          <h3 className="text-lg font-semibold text-white mb-4 text-center">Try asking me about:</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {exampleQuestions.map((example, index) => (
-              <button
-                key={index}
-                onClick={() => setInputValue(example.question)}
-                className="bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg p-4 text-left transition-all duration-200 hover:border-blue-500 group"
-              >
-                <div className="flex items-start space-x-3">
-                  <span className="text-2xl">{example.icon}</span>
-                  <div className="flex-1">
-                    <div className="text-xs text-blue-400 font-medium mb-1 uppercase tracking-wide">
-                      {example.category}
-                    </div>
-                    <div className="text-gray-200 text-sm leading-relaxed group-hover:text-white transition-colors">
-                      {example.question}
-                    </div>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Quick Tips */}
-        <div className="bg-gray-800 rounded-lg p-4 border border-gray-600">
-          <h4 className="text-white font-medium mb-2">💡 Tips for better results:</h4>
-          <ul className="text-gray-400 text-sm space-y-1">
-            <li>• Be specific about the data structure or algorithm</li>
-            <li>• Ask about time/space complexity, implementation details, or use cases</li>
-            <li>• Use technical terms like "binary tree", "hash table", "dynamic programming"</li>
-          </ul>
-        </div>
-      </div>
-    );
+      if (line.startsWith('• ')) {
+        return <div key={index} className="ml-4 text-gray-300">{line}</div>;
+      }
+      return <div key={index} className="text-gray-300 mb-1">{line}</div>;
+    });
   };
 
   const renderProbabilityBars = (data: any) => {
@@ -439,7 +243,10 @@ export default function DSAChat() {
                     {message.type === 'user' ? (
                       <div>{message.content}</div>
                     ) : (
-                      renderBotResponse(message)
+                      <div>
+                        {formatMessage(message.content)}
+                        {message.data && renderProbabilityBars(message.data)}
+                      </div>
                     )}
                   </div>
                   <div className={`text-xs mt-2 ${
@@ -451,9 +258,6 @@ export default function DSAChat() {
               </div>
             </div>
           ))}
-
-          {/* Welcome Message for First Visit */}
-          {messages.length === 1 && renderWelcomeMessage()}
 
           {/* Loading indicator */}
           {isLoading && (

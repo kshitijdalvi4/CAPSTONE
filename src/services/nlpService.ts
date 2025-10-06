@@ -1,77 +1,142 @@
-// Simplified service for basic functionality without Flask backend
+const API_URL = 'http://localhost:5001/api/nlp';
+
 class NLPService {
-  async initializeSystem(): Promise<{ success: boolean; message: string; chunksCount?: number }> {
-    // Mock initialization for when Flask server is not available
+  private getHeaders(): Record<string, string> {
     return {
-      success: true,
-      message: 'System ready (using mock data)',
-      chunksCount: 0
+      'Content-Type': 'application/json'
     };
+  }
+
+  async initializeSystem(): Promise<{ success: boolean; message: string; chunksCount?: number }> {
+    try {
+      const response = await fetch(`${API_URL}/initialize`, {
+        method: 'POST',
+        headers: this.getHeaders()
+      });
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Failed to initialize NLP system:', error);
+      throw new Error('Failed to initialize NLP system');
+    }
   }
 
   async generateMCQQuestions(topic: string, difficulty: string = 'beginner', count: number = 5) {
-    // Mock MCQ generation
-    const mockQuestions = [
-      {
-        _id: '1',
-        question: `What is the time complexity of searching in a ${topic}?`,
-        options: ['O(1)', 'O(log n)', 'O(n)', 'O(n²)'],
-        correctAnswer: 2,
-        explanation: `Linear search in ${topic} requires checking each element.`,
-        category: 'algorithm'
-      }
-    ];
-
-    return {
-      success: true,
-      questions: mockQuestions.slice(0, count)
-    };
+    try {
+      const response = await fetch(`${API_URL}/generate-mcq`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ topic, difficulty, count })
+      });
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Failed to generate MCQ questions:', error);
+      throw new Error('Failed to generate MCQ questions');
+    }
   }
 
   async generateProblems(topic: string, difficulty: string = 'Easy', count: number = 3) {
-    return {
-      success: false,
-      message: 'Problem generation not available without Flask backend'
-    };
+    try {
+      const response = await fetch(`${API_URL}/generate-problems`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ topic, difficulty, count })
+      });
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Failed to generate problems:', error);
+      throw new Error('Failed to generate problems');
+    }
   }
 
   async getRecommendations(performance: any) {
-    return {
-      success: true,
-      recommendations: {
-        recommendedTopics: ['Arrays', 'Binary Search', 'Hash Tables'],
-        suggestedDifficulty: 'beginner',
-        nextSteps: ['Practice basic problems', 'Focus on fundamentals']
-      }
-    };
+    try {
+      const response = await fetch(`${API_URL}/recommendations`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ performance })
+      });
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Failed to get recommendations:', error);
+      throw new Error('Failed to get recommendations');
+    }
   }
 
   async getProblems(filters?: { difficulty?: string; category?: string; limit?: number }) {
-    return {
-      success: true,
-      problems: []
-    };
+    try {
+      const params = new URLSearchParams();
+      if (filters?.difficulty) params.append('difficulty', filters.difficulty);
+      if (filters?.category) params.append('category', filters.category);
+      if (filters?.limit) params.append('limit', filters.limit.toString());
+      
+      const response = await fetch(`${API_URL}/problems?${params}`, {
+        headers: this.getHeaders()
+      });
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Failed to get problems:', error);
+      throw new Error('Failed to get problems');
+    }
   }
 
   async getProblemById(id: string) {
-    return {
-      success: false,
-      message: 'Problem loading not available without Flask backend'
-    };
+    try {
+      const response = await fetch(`${API_URL}/problems/${id}`, {
+        headers: this.getHeaders()
+      });
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Failed to get problem:', error);
+      throw new Error('Failed to get problem');
+    }
   }
 
   async getMCQQuestions(problemId?: string, count: number = 5) {
-    return {
-      success: false,
-      message: 'MCQ loading not available without Flask backend'
-    };
+    try {
+      const endpoint = problemId 
+        ? `${API_URL}/problems/${problemId}/mcq?count=${count}`
+        : `${API_URL}/problems/general/mcq?count=${count}`;
+        
+      const response = await fetch(endpoint, {
+        headers: this.getHeaders()
+      });
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Failed to get MCQ questions:', error);
+      throw new Error('Failed to get MCQ questions');
+    }
   }
 
   async getBookContent(filters?: { topic?: string; difficulty?: string }) {
-    return {
-      success: false,
-      message: 'Book content not available without Flask backend'
-    };
+    try {
+      const params = new URLSearchParams();
+      if (filters?.topic) params.append('topic', filters.topic);
+      if (filters?.difficulty) params.append('difficulty', filters.difficulty);
+      
+      const response = await fetch(`${API_URL}/book-content?${params}`, {
+        headers: this.getHeaders()
+      });
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Failed to get book content:', error);
+      throw new Error('Failed to get book content');
+    }
   }
 }
 
