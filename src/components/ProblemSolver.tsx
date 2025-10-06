@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, CheckCircle, XCircle, Lightbulb, Play, RotateCcw, Settings, Eye, EyeOff } from 'lucide-react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import { useParams } from 'react-router-dom';
 import { useProblem } from '../contexts/ProblemContext';
 import CodeEditor from './CodeEditor';
 import MCQSection from './MCQSection';
@@ -8,7 +9,8 @@ import Timer from './Timer';
 import OptimalSolution from './OptimalSolution';
 
 export default function ProblemSolver() {
-  const { currentProblem } = useProblem();
+  const { problemId } = useParams<{ problemId: string }>();
+  const { currentProblem, loadProblem, loading: problemLoading } = useProblem();
   const [isCompleted, setIsCompleted] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const [currentHintIndex, setCurrentHintIndex] = useState(0);
@@ -17,6 +19,12 @@ export default function ProblemSolver() {
   const [showOptimalSolution, setShowOptimalSolution] = useState(false);
   const [solutionWorked, setSolutionWorked] = useState<boolean | null>(null);
   const [hintInterval, setHintInterval] = useState<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (problemId && problemId !== currentProblem?.id) {
+      loadProblem(problemId);
+    }
+  }, [problemId]);
 
   useEffect(() => {
     if (phase === 'coding' && timerRunning) {
@@ -35,8 +43,31 @@ export default function ProblemSolver() {
     }
   }, [phase, timerRunning, showHint]);
 
+  if (problemLoading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-gray-900">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto mb-4"></div>
+          <p className="text-white text-lg">Loading problem...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!currentProblem) {
-    return <div className="text-white p-8">No problem selected</div>;
+    return (
+      <div className="h-screen flex items-center justify-center bg-gray-900">
+        <div className="text-center">
+          <p className="text-white text-lg mb-4">Problem not found</p>
+          <button 
+            onClick={() => window.history.back()}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
+    );
   }
 
   const handleStartCoding = () => {
