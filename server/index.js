@@ -7,7 +7,6 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import mongoose from 'mongoose';
 import User from './models/User.js';
-import nlpRoutes from './routes/nlp.js';
 
 const app = express();
 const SECRET_KEY = process.env.SECRET_KEY || 'your-very-secret-key';
@@ -15,9 +14,6 @@ const SECRET_KEY = process.env.SECRET_KEY || 'your-very-secret-key';
 // --- Middleware ---
 app.use(cors({ origin: 'http://localhost:5173' }));
 app.use(express.json());
-
-// --- NLP Routes ---
-app.use('/api/nlp', nlpRoutes);
 
 // --- MongoDB Connection ---
 mongoose.connect(process.env.MONGO_URI)
