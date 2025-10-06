@@ -1,10 +1,8 @@
 import React from 'react';
-import { Code2, User, LogOut, Home, BarChart3 } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import { Code as Code2, Home, BarChart3 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 export default function Navigation() {
-  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -39,24 +37,10 @@ export default function Navigation() {
         </div>
 
         <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-3">
-            <img
-              src={user?.avatar}
-              alt={user?.name}
-              className="h-8 w-8 rounded-full"
-            />
-            <div className="text-sm">
-              <div className="text-white font-medium">{user?.name}</div>
-              <div className="text-gray-400">{user?.experience}</div>
-            </div>
+          <div className="text-sm">
+            <div className="text-white font-medium">Guest User</div>
+            <div className="text-gray-400">Beginner</div>
           </div>
-          
-          <button
-            onClick={logout}
-            className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
-          >
-            <LogOut className="h-5 w-5" />
-          </button>
         </div>
       </div>
     </nav>

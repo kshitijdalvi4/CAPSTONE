@@ -1,12 +1,10 @@
 import React from 'react';
-import { Trophy, Target, Clock, TrendingUp, Code2, Brain, Zap } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import { Trophy, Target, Clock, TrendingUp, Code as Code2, Brain, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import nlpService from '../services/nlpService';
 
 export default function Dashboard() {
-  const { user } = useAuth();
   const navigate = useNavigate();
   const [isInitialized, setIsInitialized] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -34,8 +32,8 @@ export default function Dashboard() {
         
         // Get personalized recommendations
         const recsResult = await nlpService.getRecommendations({
-          accuracy: user?.accuracy || 0,
-          solvedProblems: user?.solvedProblems || 0
+          accuracy: 0,
+          solvedProblems: 0
         });
         if (recsResult.success) {
           setRecommendations(recsResult.recommendations);
@@ -48,8 +46,8 @@ export default function Dashboard() {
     }
   };
   const stats = [
-    { label: 'Problems Solved', value: user?.solvedProblems || 0, icon: Trophy, color: 'text-yellow-400' },
-    { label: 'Accuracy Rate', value: `${user?.accuracy || 0}%`, icon: Target, color: 'text-green-400' },
+    { label: 'Problems Solved', value: 0, icon: Trophy, color: 'text-yellow-400' },
+    { label: 'Accuracy Rate', value: '0%', icon: Target, color: 'text-green-400' },
     { label: 'Avg. Time', value: '12m 34s', icon: Clock, color: 'text-blue-400' },
     { label: 'Streak', value: '7 days', icon: TrendingUp, color: 'text-purple-400' }
   ];
@@ -92,7 +90,7 @@ export default function Dashboard() {
 
       {/* Welcome Section */}
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-8 text-white">
-        <h1 className="text-3xl font-bold mb-2">Welcome back, {user?.name}!</h1>
+        <h1 className="text-3xl font-bold mb-2">Welcome to CodeOptimizer!</h1>
         <p className="text-blue-100 text-lg">Ready to optimize your coding skills today?</p>
       </div>
 

@@ -1,13 +1,9 @@
-import { useAuth } from '../contexts/AuthContext';
-
 const API_URL = 'http://localhost:5001/api/nlp';
 
 class NLPService {
   private getHeaders(): Record<string, string> {
-    const token = localStorage.getItem('token');
     return {
-      'Content-Type': 'application/json',
-      ...(token && { 'Authorization': `Bearer ${token}` })
+      'Content-Type': 'application/json'
     };
   }
 
