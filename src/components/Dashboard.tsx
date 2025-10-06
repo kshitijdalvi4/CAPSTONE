@@ -1,10 +1,12 @@
 import React from 'react';
-import { Trophy, Target, Clock, TrendingUp, Code as Code2, Brain, Zap, Play, MessageSquare } from 'lucide-react';
+import { Trophy, Target, Clock, TrendingUp, Code2, Brain, Zap } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import nlpService from '../services/nlpService';
 
 export default function Dashboard() {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [isInitialized, setIsInitialized] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -32,8 +34,8 @@ export default function Dashboard() {
         
         // Get personalized recommendations
         const recsResult = await nlpService.getRecommendations({
-          accuracy: 0,
-          solvedProblems: 0
+          accuracy: user?.accuracy || 0,
+          solvedProblems: user?.solvedProblems || 0
         });
         if (recsResult.success) {
           setRecommendations(recsResult.recommendations);
@@ -46,8 +48,8 @@ export default function Dashboard() {
     }
   };
   const stats = [
-    { label: 'Problems Solved', value: 0, icon: Trophy, color: 'text-yellow-400' },
-    { label: 'Accuracy Rate', value: '0%', icon: Target, color: 'text-green-400' },
+    { label: 'Problems Solved', value: user?.solvedProblems || 0, icon: Trophy, color: 'text-yellow-400' },
+    { label: 'Accuracy Rate', value: `${user?.accuracy || 0}%`, icon: Target, color: 'text-green-400' },
     { label: 'Avg. Time', value: '12m 34s', icon: Clock, color: 'text-blue-400' },
     { label: 'Streak', value: '7 days', icon: TrendingUp, color: 'text-purple-400' }
   ];
@@ -62,30 +64,6 @@ export default function Dashboard() {
     { topic: 'Arrays & Strings', score: 94 },
     { topic: 'Hash Tables', score: 91 },
     { topic: 'Two Pointers', score: 88 }
-  ];
-
-  const sampleProblems = [
-    {
-      id: 'sample-1',
-      title: 'Two Sum',
-      difficulty: 'Easy',
-      description: 'Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.',
-      tags: ['Array', 'Hash Table']
-    },
-    {
-      id: 'sample-2', 
-      title: 'Binary Search',
-      difficulty: 'Easy',
-      description: 'Given a sorted array of integers nums and an integer target, return the index of target if it exists, otherwise return -1.',
-      tags: ['Array', 'Binary Search']
-    },
-    {
-      id: 'sample-3',
-      title: 'Linked List Cycle',
-      difficulty: 'Medium', 
-      description: 'Given head, the head of a linked list, determine if the linked list has a cycle in it.',
-      tags: ['Linked List', 'Two Pointers']
-    }
   ];
 
   return (
@@ -114,24 +92,8 @@ export default function Dashboard() {
 
       {/* Welcome Section */}
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-8 text-white">
-        <h1 className="text-3xl font-bold mb-2">Welcome to CodeOptimizer!</h1>
-        <p className="text-blue-100 text-lg mb-4">Ready to optimize your coding skills today?</p>
-        <div className="flex space-x-4">
-          <button
-            onClick={() => navigate('/solve/sample-1')}
-            className="flex items-center px-6 py-3 bg-white/20 hover:bg-white/30 text-white font-semibold rounded-lg transition-colors"
-          >
-            <Play className="h-5 w-5 mr-2" />
-            Start Solving Problems
-          </button>
-          <button
-            onClick={() => navigate('/chat')}
-            className="flex items-center px-6 py-3 bg-white/20 hover:bg-white/30 text-white font-semibold rounded-lg transition-colors"
-          >
-            <MessageSquare className="h-5 w-5 mr-2" />
-            Ask DSA Questions
-          </button>
-        </div>
+        <h1 className="text-3xl font-bold mb-2">Welcome back, {user?.name}!</h1>
+        <p className="text-blue-100 text-lg">Ready to optimize your coding skills today?</p>
       </div>
 
       {/* Stats Grid */}
@@ -163,9 +125,9 @@ export default function Dashboard() {
             </div>
             
             <div className="space-y-4">
-              {(recommendedProblems.length > 0 ? recommendedProblems : sampleProblems).map((problem) => (
+              {recommendedProblems.map((problem) => (
                 <div key={problem.id} className="bg-gray-700/50 rounded-lg p-4 hover:bg-gray-700 transition-colors cursor-pointer"
-                     onClick={() => navigate(`/solve/${problem._id || problem.id}`)}>
+                     onClick={() => navigate(`/solve/${problem._id}`)}>
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="font-semibold text-white">{problem.title}</h3>
                     <div className="flex items-center space-x-2">
@@ -188,7 +150,7 @@ export default function Dashboard() {
                       ))}
                     </div>
                     <div className="text-gray-400 flex items-center space-x-4">
-                      <span>{recommendedProblems.length > 0 ? 'Generated by AI' : 'Sample Problem'}</span>
+                      <span>Generated by AI</span>
                       <span>~15 min</span>
                     </div>
                   </div>
@@ -197,10 +159,10 @@ export default function Dashboard() {
             </div>
             
             <button 
-              onClick={() => navigate('/solve/sample-1')}
+              onClick={() => navigate('/problems')}
               className="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-colors"
             >
-              Start Problem Solving
+              View All Problems
             </button>
           </div>
         </div>
