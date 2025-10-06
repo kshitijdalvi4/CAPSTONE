@@ -1,281 +1,315 @@
 import express from 'express';
-import { initializeMCQSystem } from '../nlp/mcq_system.js';
-import path from 'path';
+import { authenticateToken } from '../middleware/auth.js';
+import nlpService from '../services/nlpService.js';
+import Problem from '../models/Problem.js';
+import MCQQuestion from '../models/MCQQuestion.js';
+import BookContent from '../models/BookContent.js';
 import fs from 'fs';
+import path from 'path';
 import { fileURLToPath } from 'url';
-import { dirname } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
-// Initialize Node.js NLP system
-let mcqSystem = null;
-let customDataLoaded = false;
-
-function initializeMCQ(jsonPath = null, modelPath = null) {
+// Initialize NLP system and process book content
+router.post('/initialize', authenticateToken, async (req, res) => {
   try {
-    console.log('🔮 Initializing MCQ system...');
-    mcqSystem = initializeMCQSystem(jsonPath, modelPath);
-    console.log('✅ MCQ system ready');
-    customDataLoaded = !!(jsonPath || modelPath);
-  } catch (error) {
-    console.error('❌ Failed to initialize MCQ system:', error);
-  }
-}
-
-// Initialize on startup  
-initializeMCQ();
-
-// Health check endpoint (matching Flask /api/health)
-router.get('/health', (req, res) => {
-  const uploadsDir = path.join(__dirname, '../nlp/uploads');
-  const jsonPath = path.join(uploadsDir, 'DSA_Arrays1.json');
-  
-  let questionCount = 0;
-  if (mcqSystem && mcqSystem.kb) {
-    questionCount = mcqSystem.kb.questionsDb.length;
-  } else if (fs.existsSync(jsonPath)) {
-    try {
-      const jsonData = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
-      questionCount = jsonData.length;
-    } catch (e) {
-      console.error('Error reading JSON:', e);
-    }
-  }
-
-  res.json({
-    status: 'ok',
-    questions: questionCount,
-    systemReady: !!mcqSystem,
-    customDataLoaded
-  });
-});
-
-// Autocomplete endpoint (matching Flask /api/autocomplete)
-router.post('/autocomplete', (req, res) => {
-  try {
-    const { text } = req.body;
+    // Check if book content is already processed
+    let bookContent = await BookContent.findOne({ processed: true });
     
-    if (!text || typeof text !== 'string') {
-      return res.json({ words: [], questions: [] });
-    }
-
-    if (!mcqSystem) {
-      return res.json({ words: [], questions: [] });
-    }
-    
-    // Get word predictions
-    const wordPredictions = mcqSystem.autocomplete.predictNextWords(text, 5);
-    
-    // Get question suggestions
-    let questionSuggestions = [];
-    if (text.length >= 3) {
-      questionSuggestions = mcqSystem.autocomplete.getQuestionSuggestions(text, 3);
-    }
-    
-    res.json({
-      words: wordPredictions,
-      questions: questionSuggestions
-    });
-  } catch (error) {
-    console.error('Autocomplete error:', error);
-    res.json({ words: [], questions: [] });
-  }
-});
-
-// Main question answering endpoint (matching Flask /api/ask)
-router.post('/ask', async (req, res) => {
-  try {
-    const { question } = req.body;
-    
-    if (!question || typeof question !== 'string') {
-      return res.status(400).json({ 
-        status: 'error',
-        message: 'Question is required and must be a string' 
+    if (!bookContent) {
+      // Read the book content from file
+      const bookPath = path.join(__dirname, '../../NLP/book_content.txt');
+      const content = fs.readFileSync(bookPath, 'utf-8');
+      
+      // Process book content using NLP service
+      const processedData = await nlpService.processBookContent(content);
+      
+      // Save to database
+      bookContent = new BookContent({
+        title: 'DSA Capstone Book',
+        content: content,
+        chunks: processedData.chunks || [],
+        processed: true,
+        processedAt: new Date()
       });
+      
+      await bookContent.save();
     }
-    
-    if (!mcqSystem) {
-      return res.status(503).json({ 
-        status: 'error',
-        message: 'MCQ system not initialized' 
-      });
-    }
-    
-    console.log('Processing question:', question);
-    const startTime = Date.now();
-    
-    // Find similar questions
-    const matches = mcqSystem.kb.findSimilarQuestions(question, 5);
-    
-    if (!matches || matches.length === 0) {
-      return res.json({
-        status: 'no_match',
-        message: 'No matching questions found',
-        total_time: (Date.now() - startTime) / 1000
-      });
-    }
-    
-    const bestMatch = matches[0];
-    
-    // Handle exact match
-    if (bestMatch.match_type === 'exact') {
-      return res.json({
-        status: 'exact_match',
-        question: bestMatch.question,
-        answer: bestMatch.correct_option,
-        answer_index: bestMatch.correct_answer,
-        explanation: bestMatch.explanation,
-        topic: bestMatch.topic,
-        difficulty: bestMatch.difficulty,
-        confidence: 1.0,
-        suggestions: matches.slice(1, 4).map(m => ({
-          question: m.question,
-          topic: m.topic
-        })),
-        total_time: (Date.now() - startTime) / 1000
-      });
-    }
-    
-    // Try to use model prediction if available
-    if (mcqSystem.modelLoader && mcqSystem.modelLoader.isReady()) {
-      try {
-        const prediction = await mcqSystem.modelLoader.predict(question, bestMatch.options);
-        
-        return res.json({
-          status: 'model_prediction',
-          original_query: question,
-          matched_question: bestMatch.question,
-          match_score: bestMatch.score,
-          answer: prediction.predicted_answer,
-          answer_index: prediction.predicted_idx,
-          confidence: prediction.confidence,
-          all_probabilities: prediction.all_probabilities,
-          options: bestMatch.options,
-          explanation: bestMatch.explanation,
-          topic: bestMatch.topic,
-          difficulty: bestMatch.difficulty,
-          inference_time: prediction.inference_time,
-          suggestions: matches.slice(1, 4).map(m => ({
-            question: m.question,
-            topic: m.topic
-          })),
-          total_time: (Date.now() - startTime) / 1000
-        });
-      } catch (error) {
-        console.error('Model prediction error:', error);
-        // Fall back to semantic matching
-      }
-    }
-    
-    // Semantic match fallback
-    return res.json({
-      status: 'model_prediction', // Keep same status for UI compatibility
-      original_query: question,
-      matched_question: bestMatch.question,
-      match_score: bestMatch.score,
-      answer: bestMatch.correct_option,
-      answer_index: bestMatch.correct_answer,
-      confidence: bestMatch.score,
-      all_probabilities: bestMatch.options.map((_, i) => 
-        i === bestMatch.correct_answer ? bestMatch.score : (1 - bestMatch.score) / (bestMatch.options.length - 1)
-      ),
-      options: bestMatch.options,
-      explanation: bestMatch.explanation,
-      topic: bestMatch.topic,
-      difficulty: bestMatch.difficulty,
-      inference_time: 0,
-      suggestions: matches.slice(1, 4).map(m => ({
-        question: m.question,
-        topic: m.topic
-      })),
-      total_time: (Date.now() - startTime) / 1000
-    });
-    
-  } catch (error) {
-    console.error('Ask question error:', error);
-    res.status(500).json({ 
-      status: 'error', 
-      message: 'Failed to process question',
-      details: error.message 
-    });
-  }
-});
-
-// Load custom model and data
-router.post('/load-custom-data', async (req, res) => {
-  try {
-    const uploadsDir = path.join(__dirname, '../nlp/uploads');
-    const modelPath = path.join(uploadsDir, 'model.zip');
-    const jsonPath = path.join(uploadsDir, 'DSA_Arrays1.json');
-    
-    const hasModel = fs.existsSync(modelPath);
-    const hasJson = fs.existsSync(jsonPath);
-    
-    if (!hasJson) {
-      return res.status(400).json({
-        success: false,
-        error: 'No JSON data file found. Please upload your DSA_Arrays1.json file first.'
-      });
-    }
-    
-    // Reinitialize system with custom data
-    initializeMCQ(jsonPath, hasModel ? modelPath : null);
-    
-    // Load model if available
-    if (hasModel && mcqSystem.modelLoader) {
-      try {
-        await mcqSystem.modelLoader.loadModel(modelPath);
-      } catch (error) {
-        console.error('Model loading error:', error);
-        // Continue without model
-      }
-    }
-    
-    const questionCount = JSON.parse(fs.readFileSync(jsonPath, 'utf8')).length;
     
     res.json({
       success: true,
-      message: 'Custom data loaded successfully',
-      hasModel,
-      hasJson,
-      questionCount,
-      modelLoaded: mcqSystem.modelLoader ? mcqSystem.modelLoader.isReady() : false
+      message: 'NLP system initialized successfully',
+      chunksCount: bookContent.chunks.length
     });
-    
   } catch (error) {
-    console.error('❌ Custom data loading error:', error);
+    console.error('NLP initialization error:', error);
     res.status(500).json({
       success: false,
+      message: 'Failed to initialize NLP system',
       error: error.message
     });
   }
 });
 
-// Get system status
-router.get('/status', (req, res) => {
-  const uploadsDir = path.join(__dirname, '../nlp/uploads');
-  const modelPath = path.join(uploadsDir, 'model.zip');
-  const jsonPath = path.join(uploadsDir, 'DSA_Arrays1.json');
-  
-  const hasModel = fs.existsSync(modelPath);
-  const hasJson = fs.existsSync(jsonPath);
-  
-  let questionCount = 0;
-  if (mcqSystem && mcqSystem.kb) {
-    questionCount = mcqSystem.kb.questionsDb.length;
+// Generate MCQ questions for a topic
+router.post('/generate-mcq', authenticateToken, async (req, res) => {
+  try {
+    const { topic, difficulty = 'beginner', count = 5 } = req.body;
+    
+    if (!topic) {
+      return res.status(400).json({
+        success: false,
+        message: 'Topic is required'
+      });
+    }
+    
+    // Generate questions using NLP service
+    const result = await nlpService.generateMCQQuestions(topic, difficulty, count);
+    
+    if (result.status === 'success') {
+      // Save questions to database
+      const savedQuestions = [];
+      for (const questionData of result.questions) {
+        const mcqQuestion = new MCQQuestion({
+          question: questionData.question,
+          options: questionData.options,
+          correctAnswer: questionData.correctAnswer,
+          explanation: questionData.explanation,
+          category: questionData.category,
+          difficulty: questionData.difficulty
+        });
+        
+        const saved = await mcqQuestion.save();
+        savedQuestions.push(saved);
+      }
+      
+      res.json({
+        success: true,
+        questions: savedQuestions
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: result.message || 'Failed to generate MCQ questions'
+      });
+    }
+  } catch (error) {
+    console.error('MCQ generation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to generate MCQ questions',
+      error: error.message
+    });
   }
-  
-  res.json({
-    systemReady: !!mcqSystem,
-    customDataLoaded,
-    hasUploadedModel: hasModel,
-    hasUploadedJson: hasJson,
-    questionCount,
-    modelLoaded: mcqSystem && mcqSystem.modelLoader ? mcqSystem.modelLoader.isReady() : false
-  });
+});
+
+// Generate coding problems for a topic
+router.post('/generate-problems', authenticateToken, async (req, res) => {
+  try {
+    const { topic, difficulty = 'Easy', count = 3 } = req.body;
+    
+    if (!topic) {
+      return res.status(400).json({
+        success: false,
+        message: 'Topic is required'
+      });
+    }
+    
+    // Generate problems using NLP service
+    const result = await nlpService.generateProblems(topic, difficulty, count);
+    
+    if (result.status === 'success') {
+      // Save problems to database
+      const savedProblems = [];
+      for (const problemData of result.problems) {
+        const problem = new Problem({
+          title: problemData.title,
+          difficulty: problemData.difficulty,
+          description: problemData.description,
+          inputFormat: problemData.inputFormat,
+          outputFormat: problemData.outputFormat,
+          constraints: problemData.constraints,
+          testCases: problemData.testCases,
+          tags: problemData.tags,
+          hints: problemData.hints,
+          category: topic
+        });
+        
+        const saved = await problem.save();
+        savedProblems.push(saved);
+      }
+      
+      res.json({
+        success: true,
+        problems: savedProblems
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: result.message || 'Failed to generate problems'
+      });
+    }
+  } catch (error) {
+    console.error('Problem generation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to generate problems',
+      error: error.message
+    });
+  }
+});
+
+// Get personalized recommendations
+router.post('/recommendations', authenticateToken, async (req, res) => {
+  try {
+    const { performance } = req.body;
+    const userId = req.user.id;
+    
+    // Get recommendations using NLP service
+    const result = await nlpService.getRecommendations(userId, performance || {});
+    
+    if (result.status === 'success') {
+      res.json({
+        success: true,
+        recommendations: result.recommendations
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: result.message || 'Failed to get recommendations'
+      });
+    }
+  } catch (error) {
+    console.error('Recommendations error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get recommendations',
+      error: error.message
+    });
+  }
+});
+
+// Get all problems
+router.get('/problems', authenticateToken, async (req, res) => {
+  try {
+    const { difficulty, category, limit = 10 } = req.query;
+    
+    const filter = {};
+    if (difficulty) filter.difficulty = difficulty;
+    if (category) filter.category = new RegExp(category, 'i');
+    
+    const problems = await Problem.find(filter)
+      .limit(parseInt(limit))
+      .sort({ createdAt: -1 });
+    
+    res.json({
+      success: true,
+      problems
+    });
+  } catch (error) {
+    console.error('Get problems error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get problems',
+      error: error.message
+    });
+  }
+});
+
+// Get problem by ID
+router.get('/problems/:id', authenticateToken, async (req, res) => {
+  try {
+    const problem = await Problem.findById(req.params.id);
+    
+    if (!problem) {
+      return res.status(404).json({
+        success: false,
+        message: 'Problem not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      problem
+    });
+  } catch (error) {
+    console.error('Get problem error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get problem',
+      error: error.message
+    });
+  }
+});
+
+// Get MCQ questions for a problem
+router.get('/problems/:id/mcq', authenticateToken, async (req, res) => {
+  try {
+    const { count = 5 } = req.query;
+    
+    // Get random MCQ questions
+    const questions = await MCQQuestion.aggregate([
+      { $sample: { size: parseInt(count) } }
+    ]);
+    
+    res.json({
+      success: true,
+      questions
+    });
+  } catch (error) {
+    console.error('Get MCQ questions error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get MCQ questions',
+      error: error.message
+    });
+  }
+});
+
+// Get book content chunks
+router.get('/book-content', authenticateToken, async (req, res) => {
+  try {
+    const { topic, difficulty } = req.query;
+    
+    const bookContent = await BookContent.findOne({ processed: true });
+    
+    if (!bookContent) {
+      return res.status(404).json({
+        success: false,
+        message: 'Book content not found. Please initialize the system first.'
+      });
+    }
+    
+    let chunks = bookContent.chunks;
+    
+    // Filter by topic if provided
+    if (topic) {
+      chunks = chunks.filter(chunk => 
+        chunk.topic.toLowerCase().includes(topic.toLowerCase())
+      );
+    }
+    
+    // Filter by difficulty if provided
+    if (difficulty) {
+      chunks = chunks.filter(chunk => chunk.difficulty === difficulty);
+    }
+    
+    res.json({
+      success: true,
+      chunks,
+      totalChunks: bookContent.chunks.length
+    });
+  } catch (error) {
+    console.error('Get book content error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get book content',
+      error: error.message
+    });
+  }
 });
 
 export default router;
