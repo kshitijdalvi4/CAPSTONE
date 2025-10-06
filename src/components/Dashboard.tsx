@@ -2,43 +2,56 @@ import React from 'react';
 import { Trophy, Target, Clock, TrendingUp, Code2, Brain, Zap } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import nlpService from '../services/nlpService';
 
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [recommendedProblems, setRecommendedProblems] = useState([]);
+  const [recommendations, setRecommendations] = useState(null);
 
+  useEffect(() => {
+    initializeSystem();
+  }, []);
+
+  const initializeSystem = async () => {
+    try {
+      setLoading(true);
+      
+      // Initialize NLP system
+      const initResult = await nlpService.initializeSystem();
+      if (initResult.success) {
+        setIsInitialized(true);
+        
+        // Get recommended problems
+        const problemsResult = await nlpService.getProblems({ limit: 3 });
+        if (problemsResult.success) {
+          setRecommendedProblems(problemsResult.problems);
+        }
+        
+        // Get personalized recommendations
+        const recsResult = await nlpService.getRecommendations({
+          accuracy: user?.accuracy || 0,
+          solvedProblems: user?.solvedProblems || 0
+        });
+        if (recsResult.success) {
+          setRecommendations(recsResult.recommendations);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to initialize system:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
   const stats = [
     { label: 'Problems Solved', value: user?.solvedProblems || 0, icon: Trophy, color: 'text-yellow-400' },
     { label: 'Accuracy Rate', value: `${user?.accuracy || 0}%`, icon: Target, color: 'text-green-400' },
     { label: 'Avg. Time', value: '12m 34s', icon: Clock, color: 'text-blue-400' },
     { label: 'Streak', value: '7 days', icon: TrendingUp, color: 'text-purple-400' }
-  ];
-
-  const recommendedProblems = [
-    {
-      id: '1',
-      title: 'Two Sum',
-      difficulty: 'Easy',
-      tags: ['Array', 'Hash Table'],
-      successRate: 89,
-      estimatedTime: '15 min'
-    },
-    {
-      id: '2',
-      title: 'Valid Parentheses',
-      difficulty: 'Easy',
-      tags: ['String', 'Stack'],
-      successRate: 92,
-      estimatedTime: '10 min'
-    },
-    {
-      id: '3',
-      title: 'Merge Two Sorted Lists',
-      difficulty: 'Easy',
-      tags: ['Linked List', 'Recursion'],
-      successRate: 85,
-      estimatedTime: '18 min'
-    }
   ];
 
   const weakAreas = [
@@ -55,6 +68,28 @@ export default function Dashboard() {
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-8">
+      {/* Loading State */}
+      {loading && (
+        <div className="bg-blue-900/20 border border-blue-600/30 rounded-xl p-6 text-center">
+          <div className="flex items-center justify-center space-x-2">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-400"></div>
+            <span className="text-blue-400">Initializing NLP system and loading personalized content...</span>
+          </div>
+        </div>
+      )}
+
+      {/* System Status */}
+      {!loading && (
+        <div className={`rounded-xl p-4 ${isInitialized ? 'bg-green-900/20 border border-green-600/30' : 'bg-red-900/20 border border-red-600/30'}`}>
+          <div className="flex items-center space-x-2">
+            <div className={`w-3 h-3 rounded-full ${isInitialized ? 'bg-green-400' : 'bg-red-400'}`}></div>
+            <span className={`text-sm ${isInitialized ? 'text-green-400' : 'text-red-400'}`}>
+              NLP System: {isInitialized ? 'Ready' : 'Not Initialized'}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Welcome Section */}
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-8 text-white">
         <h1 className="text-3xl font-bold mb-2">Welcome back, {user?.name}!</h1>
@@ -92,7 +127,7 @@ export default function Dashboard() {
             <div className="space-y-4">
               {recommendedProblems.map((problem) => (
                 <div key={problem.id} className="bg-gray-700/50 rounded-lg p-4 hover:bg-gray-700 transition-colors cursor-pointer"
-                     onClick={() => navigate(`/solve/${problem.id}`)}>
+                     onClick={() => navigate(`/solve/${problem._id}`)}>
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="font-semibold text-white">{problem.title}</h3>
                     <div className="flex items-center space-x-2">
@@ -108,22 +143,25 @@ export default function Dashboard() {
                   
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex flex-wrap gap-1">
-                      {problem.tags.map((tag) => (
+                      {problem.tags?.map((tag) => (
                         <span key={tag} className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
                           {tag}
                         </span>
                       ))}
                     </div>
                     <div className="text-gray-400 flex items-center space-x-4">
-                      <span>{problem.successRate}% success rate</span>
-                      <span>~{problem.estimatedTime}</span>
+                      <span>Generated by AI</span>
+                      <span>~15 min</span>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
             
-            <button className="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-colors">
+            <button 
+              onClick={() => navigate('/problems')}
+              className="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-colors"
+            >
               View All Problems
             </button>
           </div>
@@ -135,27 +173,66 @@ export default function Dashboard() {
           <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
             <h3 className="text-lg font-bold text-white mb-4 flex items-center">
               <Target className="h-5 w-5 text-red-400 mr-2" />
-              Areas to Improve
+              {recommendations ? 'Personalized Recommendations' : 'Areas to Improve'}
             </h3>
-            <div className="space-y-3">
-              {weakAreas.map((area) => (
-                <div key={area.topic}>
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-sm text-gray-300">{area.topic}</span>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs text-green-400">{area.improvement}</span>
-                      <span className="text-sm text-white">{area.score}%</span>
-                    </div>
-                  </div>
-                  <div className="w-full bg-gray-700 rounded-full h-2">
-                    <div 
-                      className="bg-red-400 h-2 rounded-full" 
-                      style={{ width: `${area.score}%` }}
-                    ></div>
+            
+            {recommendations ? (
+              <div className="space-y-4">
+                <div>
+                  <h4 className="text-sm font-medium text-gray-400 mb-2">Recommended Topics</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {recommendations.recommendedTopics?.map((topic, index) => (
+                      <span key={index} className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
+                        {topic}
+                      </span>
+                    ))}
                   </div>
                 </div>
-              ))}
-            </div>
+                
+                <div>
+                  <h4 className="text-sm font-medium text-gray-400 mb-2">Suggested Difficulty</h4>
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    recommendations.suggestedDifficulty === 'beginner' ? 'bg-green-100 text-green-800' :
+                    recommendations.suggestedDifficulty === 'intermediate' ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-red-100 text-red-800'
+                  }`}>
+                    {recommendations.suggestedDifficulty}
+                  </span>
+                </div>
+                
+                <div>
+                  <h4 className="text-sm font-medium text-gray-400 mb-2">Next Steps</h4>
+                  <ul className="text-sm text-gray-300 space-y-1">
+                    {recommendations.nextSteps?.map((step, index) => (
+                      <li key={index} className="flex items-start">
+                        <span className="text-blue-400 mr-2">•</span>
+                        {step}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {weakAreas.map((area) => (
+                  <div key={area.topic}>
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-sm text-gray-300">{area.topic}</span>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-xs text-green-400">{area.improvement}</span>
+                        <span className="text-sm text-white">{area.score}%</span>
+                      </div>
+                    </div>
+                    <div className="w-full bg-gray-700 rounded-full h-2">
+                      <div 
+                        className="bg-red-400 h-2 rounded-full" 
+                        style={{ width: `${area.score}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Strong Areas */}
