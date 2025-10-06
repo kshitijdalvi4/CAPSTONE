@@ -1,22 +1,10 @@
 const express = require('express');
-const { initializeMCQSystem } = require('../nlp/mcq_system');
+const { spawn } = require('child_process');
+const path = require('path');
 const router = express.Router();
 
-// Initialize Node.js NLP system
-let mcqSystem = null;
-
-function initializeMCQ() {
-  try {
-    console.log('🔮 Initializing MCQ system...');
-    mcqSystem = initializeMCQSystem();
-    console.log('✅ MCQ system ready');
-  } catch (error) {
-    console.error('❌ Failed to initialize MCQ system:', error);
-  }
-}
-
-// Initialize on startup  
-initializeMCQ();
+// Path to Python script
+const PYTHON_SCRIPT = path.join(__dirname, '../nlp/mcq_system.py');
 
 // Helper function to run Python script
 function runPythonScript(command, args = []) {
@@ -86,60 +74,15 @@ router.post('/autocomplete', async (req, res) => {
   try {
     const { text } = req.body;
     
-    if (!mcqSystem) {
-      return res.status(503).json({ error: 'MCQ system not initialized' });
+    if (!text || typeof text !== 'string') {
+      return res.status(400).json({ error: 'Text is required and must be a string' });
     }
     
-    const wordPredictions = mcqSystem.autocomplete.predictNextWords(text, 5);
-    const questionSuggestions = mcqSystem.autocomplete.getQuestionSuggestions(text, 3);
-    
-    res.json({
-      words: wordPredictions,
-      questions: questionSuggestions
-    });
-  } catch (error) {
-    console.error('Autocomplete error:', error);
-    res.status(500).json({ error: 'Failed to get autocomplete suggestions' });
-  }
-});
-
-// Answer questions
-router.post('/answer', async (req, res) => {
-  try {
-    const { question } = req.body;
-    
-    if (!mcqSystem) {
-      return res.status(503).json({ error: 'MCQ system not initialized' });
-    }
-    
-    const result = mcqSystem.qaSystem.answerQuestion(question);
-    
+    const result = await runPythonScript('autocomplete', [text]);
     res.json(result);
   } catch (error) {
-    console.error('Answer error:', error);
-    res.status(500).json({ error: 'Failed to process question' });
-  }
-});
-
-// Get questions
-router.get('/questions', async (req, res) => {
-  try {
-    if (!mcqSystem) {
-      return res.status(503).json({ error: 'MCQ system not initialized' });
-    }
-    
-    const questions = mcqSystem.kb.questionsDb.map((q, index) => ({
-      id: index + 1,
-      question: q.question,
-      topic: q.topic,
-      difficulty: q.difficulty,
-      options: q.options
-    }));
-    
-    res.json(questions);
-  } catch (error) {
-    console.error('Questions error:', error);
-    res.status(500).json({ error: 'Failed to get questions' });
+    console.error('Autocomplete error:', error);
+    res.status(500).json({ error: 'Failed to get autocomplete suggestions', details: error.message });
   }
 });
 
