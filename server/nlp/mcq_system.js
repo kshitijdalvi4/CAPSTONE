@@ -1,6 +1,6 @@
-import fs from 'fs';
-import path from 'path';
-import ModelLoader from './model_loader.js';
+const fs = require('fs');
+const path = require('path');
+const ModelLoader = require('./model_loader');
 
 class AutocompleteEngine {
     constructor(questionsDb) {
@@ -291,7 +291,7 @@ class LocalQASystem {
 // Initialize the system
 function initializeMCQSystem(customJsonPath = null, modelPath = null) {
     try {
-        const jsonPath = customJsonPath || path.join(path.dirname(new URL(import.meta.url).pathname), 'data', 'DSA_Arrays1.json');
+        const jsonPath = customJsonPath || path.join(__dirname, 'data', 'DSA_Arrays1.json');
         const kb = new LocalKnowledgeBase(jsonPath);
         const autocomplete = new AutocompleteEngine(kb.questionsDb);
         
@@ -317,7 +317,7 @@ function initializeMCQSystem(customJsonPath = null, modelPath = null) {
     }
 }
 
-export {
+module.exports = {
     AutocompleteEngine,
     LocalKnowledgeBase,
     LocalQASystem,

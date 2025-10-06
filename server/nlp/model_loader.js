@@ -1,6 +1,6 @@
-import fs from 'fs';
-import path from 'path';
-import { spawn } from 'child_process';
+const fs = require('fs');
+const path = require('path');
+const { spawn } = require('child_process');
 
 class ModelLoader {
   constructor() {
@@ -82,4 +82,4 @@ class ModelLoader {
   }
 }
 
-export default ModelLoader;
+module.exports = ModelLoader;

@@ -1,13 +1,7 @@
-import express from 'express';
-import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
+const express = require('express');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const router = express.Router();
 
 // Configure multer for file uploads
@@ -107,4 +101,4 @@ router.get('/check-assets', (req, res) => {
   });
 });
 
-export default router;
+module.exports = router;
