@@ -1,33 +1,28 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Lightbulb, Brain, Clock, Target, Sparkles, CircleCheck as CheckCircle } from 'lucide-react';
+import { Send, Lightbulb, Brain, Clock, Target, Sparkles } from 'lucide-react';
 import axios from 'axios';
 
 interface MCQResult {
   status: string;
-  question?: string;
-  original_query?: string;
-  matched_question?: string;
+  question: string;
   answer: string;
   answer_index: number;
   explanation: string;
   topic: string;
   difficulty: string;
   confidence: number;
-  match_score?: number;
-  options?: string[];
-  all_probabilities?: number[];
-  inference_time?: number;
+  options: string[];
   suggestions?: Array<{
     question: string;
     topic: string;
+    difficulty: string;
   }>;
   total_time: number;
-  message?: string;
 }
 
 interface AutocompleteResult {
-  words: string[];
-  questions: string[];
+  word_predictions: string[];
+  question_suggestions: string[];
 }
 
 export default function MCQChat() {
@@ -41,7 +36,6 @@ export default function MCQChat() {
   const [isLoading, setIsLoading] = useState(false);
   const [autocomplete, setAutocomplete] = useState<AutocompleteResult | null>(null);
   const [showAutocomplete, setShowAutocomplete] = useState(false);
-  const [systemStatus, setSystemStatus] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -53,19 +47,18 @@ export default function MCQChat() {
   }, [messages]);
 
   useEffect(() => {
-    // Check system health on component mount
-    checkSystemHealth();
+    // Initialize NLP system on component mount
+    const initializeNLP = async () => {
+      try {
+        await axios.post('/api/nlp/initialize');
+        console.log('NLP system initialized');
+      } catch (error) {
+        console.error('Failed to initialize NLP system:', error);
+      }
+    };
+    
+    initializeNLP();
   }, []);
-
-  const checkSystemHealth = async () => {
-    try {
-      const response = await axios.get('/api/nlp/health');
-      setSystemStatus(response.data);
-      console.log('System status:', response.data);
-    } catch (error) {
-      console.error('Failed to check system health:', error);
-    }
-  };
 
   const handleAutocomplete = async (text: string) => {
     if (text.length < 2) {
@@ -76,7 +69,7 @@ export default function MCQChat() {
     try {
       const response = await axios.post('/api/nlp/autocomplete', { text });
       setAutocomplete(response.data);
-      setShowAutocomplete(response.data.words.length > 0 || response.data.questions.length > 0);
+      setShowAutocomplete(true);
     } catch (error) {
       console.error('Autocomplete error:', error);
       setShowAutocomplete(false);
@@ -98,7 +91,7 @@ export default function MCQChat() {
     setShowAutocomplete(false);
 
     try {
-      const response = await axios.post('/api/nlp/ask', { question: query });
+      const response = await axios.post('/api/nlp/query', { query });
       const result: MCQResult = response.data;
 
       const assistantMessage = {
@@ -128,47 +121,20 @@ export default function MCQChat() {
       return "I couldn't find a matching question in my knowledge base. Try rephrasing your question or use different keywords.";
     }
 
-    const statusEmoji = result.status === 'exact_match' ? '🎯' : '🤖';
-    const statusText = result.status === 'exact_match' ? 'EXACT MATCH' : 
-      `AI PREDICTION${result.match_score ? ` (${(result.match_score * 100).toFixed(0)}% match)` : ''}`;
-    
+    const statusEmoji = result.status === 'exact_match' ? '🎯' : '🔍';
     const confidenceBar = '█'.repeat(Math.floor(result.confidence * 10)) + '░'.repeat(10 - Math.floor(result.confidence * 10));
     
-    let response = `${statusEmoji} **${statusText}**
+    return `${statusEmoji} **${result.status === 'exact_match' ? 'Exact Match' : 'Similar Question'}**
 
-**Question:** ${result.original_query || result.question || 'N/A'}
-
-**Answer (Option ${result.answer_index + 1}):** ${result.answer}
+**Answer:** ${result.answer}
 
 **Confidence:** ${confidenceBar} ${(result.confidence * 100).toFixed(1)}%
 
 **Topic:** ${result.topic} | **Difficulty:** ${result.difficulty}
 
-**Explanation:** ${result.explanation}`;
+**Explanation:** ${result.explanation}
 
-    if (result.inference_time) {
-      response += `\n\n**Inference Time:** ${(result.inference_time * 1000).toFixed(1)}ms`;
-    }
-    
-    response += `\n\n**Total Time:** ${(result.total_time * 1000).toFixed(0)}ms`;
-
-    return response;
-  };
-
-  const addWordToQuery = (word: string) => {
-    const words = query.split(' ');
-    if (query.endsWith(' ')) {
-      setQuery(query + word + ' ');
-    } else {
-      words[words.length - 1] = word;
-      setQuery(words.join(' ') + ' ');
-    }
-    setShowAutocomplete(false);
-  };
-
-  const setQuestionFromSuggestion = (question: string) => {
-    setQuery(question);
-    setShowAutocomplete(false);
+*Response time: ${(result.total_time * 1000).toFixed(0)}ms*`;
   };
 
   const exampleQuestions = [
@@ -192,12 +158,6 @@ export default function MCQChat() {
             </div>
           </div>
           <div className="flex items-center space-x-4 text-sm text-gray-400">
-            {systemStatus && (
-              <div className="flex items-center space-x-2">
-                <CheckCircle className={`h-4 w-4 ${systemStatus.systemReady ? 'text-green-400' : 'text-red-400'}`} />
-                <span>{systemStatus.questions} questions loaded</span>
-              </div>
-            )}
             <div className="flex items-center space-x-1">
               <Target className="h-4 w-4" />
               <span>AI-Powered</span>
@@ -247,32 +207,22 @@ export default function MCQChat() {
                   <div className="prose prose-invert max-w-none">
                     <div className="whitespace-pre-wrap">{message.content}</div>
                     
-                    {message.result && message.result.options && message.result.all_probabilities && (
+                    {message.result && message.result.options && (
                       <div className="mt-4 p-3 bg-gray-700/50 rounded-lg">
-                        <h4 className="text-sm font-medium text-gray-300 mb-2">Model Confidence Distribution:</h4>
-                        <div className="space-y-2">
-                          {message.result.options.map((option, idx) => {
-                            const probability = message.result!.all_probabilities![idx];
-                            const isCorrect = idx === message.result!.answer_index;
-                            return (
-                              <div key={idx} className="text-sm">
-                                <div className="flex items-center justify-between mb-1">
-                                  <span className={`${isCorrect ? 'text-green-300 font-medium' : 'text-gray-400'}`}>
-                                    {isCorrect ? '✓' : ' '} {String.fromCharCode(65 + idx)}. {option.substring(0, 50)}...
-                                  </span>
-                                  <span className="text-xs">{(probability * 100).toFixed(1)}%</span>
-                                </div>
-                                <div className="w-full bg-gray-600 rounded-full h-2">
-                                  <div 
-                                    className={`h-2 rounded-full transition-all duration-500 ${
-                                      isCorrect ? 'bg-green-400' : 'bg-gray-400'
-                                    }`}
-                                    style={{ width: `${probability * 100}%` }}
-                                  ></div>
-                                </div>
-                              </div>
-                            );
-                          })}
+                        <h4 className="text-sm font-medium text-gray-300 mb-2">All Options:</h4>
+                        <div className="space-y-1">
+                          {message.result.options.map((option, idx) => (
+                            <div key={idx} className={`text-sm p-2 rounded ${
+                              idx === message.result!.answer_index 
+                                ? 'bg-green-600/20 text-green-300 border border-green-600/30' 
+                                : 'text-gray-400'
+                            }`}>
+                              <span className="font-medium">{String.fromCharCode(65 + idx)}.</span> {option}
+                              {idx === message.result!.answer_index && (
+                                <span className="ml-2 text-xs">✓ Correct</span>
+                              )}
+                            </div>
+                          ))}
                         </div>
                       </div>
                     )}
@@ -307,7 +257,7 @@ export default function MCQChat() {
               <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
                 <div className="flex items-center space-x-2">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400"></div>
-                  <span className="text-gray-400">Analyzing your question...</span>
+                  <span className="text-gray-400">Thinking...</span>
                 </div>
               </div>
             </div>
@@ -323,14 +273,23 @@ export default function MCQChat() {
           {/* Autocomplete */}
           {showAutocomplete && autocomplete && (
             <div className="mb-3 p-3 bg-gray-800 rounded-lg border border-gray-600">
-              {autocomplete.words.length > 0 && (
+              {autocomplete.word_predictions.length > 0 && (
                 <div className="mb-2">
                   <span className="text-xs text-gray-400 font-medium">💡 Suggested words: </span>
-                  {autocomplete.words.map((word, idx) => (
+                  {autocomplete.word_predictions.map((word, idx) => (
                     <button
                       key={idx}
-                      onClick={() => addWordToQuery(word)}
-                      className="ml-2 px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors"
+                      onClick={() => {
+                        const words = query.split(' ');
+                        if (query.endsWith(' ')) {
+                          setQuery(query + word + ' ');
+                        } else {
+                          words[words.length - 1] = word;
+                          setQuery(words.join(' ') + ' ');
+                        }
+                        setShowAutocomplete(false);
+                      }}
+                      className="ml-2 px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded"
                     >
                       {word}
                     </button>
@@ -338,15 +297,18 @@ export default function MCQChat() {
                 </div>
               )}
               
-              {autocomplete.questions.length > 0 && (
+              {autocomplete.question_suggestions.length > 0 && (
                 <div>
                   <span className="text-xs text-gray-400 font-medium">📝 Similar questions:</span>
                   <div className="mt-1 space-y-1">
-                    {autocomplete.questions.map((question, idx) => (
+                    {autocomplete.question_suggestions.map((question, idx) => (
                       <button
                         key={idx}
-                        onClick={() => setQuestionFromSuggestion(question)}
-                        className="block text-left text-xs text-blue-300 hover:text-blue-200 hover:underline transition-colors"
+                        onClick={() => {
+                          setQuery(question);
+                          setShowAutocomplete(false);
+                        }}
+                        className="block text-left text-xs text-blue-300 hover:text-blue-200 hover:underline"
                       >
                         • {question.substring(0, 100)}...
                       </button>
