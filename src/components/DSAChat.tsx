@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Lightbulb, Clock, Target, Zap, MessageSquare } from 'lucide-react';
+import { Send, Bot, User, MessageSquare } from 'lucide-react';
 
 interface Message {
   id: string;
@@ -31,8 +31,8 @@ export default function DSAChat() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const debounceTimer = useRef<NodeJS.Timeout>();
 
-  // Your Flask API URL - update this to match your backend
-  const API_URL = 'http://localhost:5001/api/nlp';
+  // Update this to match your Flask server URL
+  const API_URL = 'http://localhost:5000/api';
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -75,7 +75,7 @@ export default function DSAChat() {
         clearTimeout(debounceTimer.current);
       }
     };
-  }, [inputValue]);
+  }, [inputValue, API_URL]);
 
   const addWord = (word: string) => {
     const words = inputValue.split(' ');
@@ -142,7 +142,7 @@ export default function DSAChat() {
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'bot',
-        content: 'Sorry, I couldn\'t connect to the server. Please make sure the Flask server is running and try again.',
+        content: 'Sorry, I couldn\'t connect to the server. Please make sure the Flask server is running on port 5000 and try again.',
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMessage]);
