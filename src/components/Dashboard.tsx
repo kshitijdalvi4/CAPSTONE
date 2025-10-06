@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trophy, Target, Clock, TrendingUp, Code as Code2, Brain, Zap, Play } from 'lucide-react';
+import { Trophy, Target, Clock, TrendingUp, Code as Code2, Brain, Zap, Play, MessageSquare } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import nlpService from '../services/nlpService';
