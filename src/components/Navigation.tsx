@@ -1,5 +1,5 @@
 import React from 'react';
-import { Code as Code2, Home, BarChart3 } from 'lucide-react';
+import { Code as Code2, Home, BarChart3, MessageSquare } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 export default function Navigation() {
@@ -26,6 +26,28 @@ export default function Navigation() {
             >
               <Home className="h-4 w-4 mr-2" />
               Dashboard
+            </button>
+            <button
+              onClick={() => navigate('/solve/sample-1')}
+              className={`flex items-center px-3 py-2 rounded-lg transition-colors ${
+                location.pathname.startsWith('/solve') 
+                  ? 'bg-blue-600 text-white' 
+                  : 'text-gray-300 hover:text-white hover:bg-gray-700'
+              }`}
+            >
+              <Code2 className="h-4 w-4 mr-2" />
+              Solve Problems
+            </button>
+            <button
+              onClick={() => navigate('/chat')}
+              className={`flex items-center px-3 py-2 rounded-lg transition-colors ${
+                location.pathname === '/chat' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'text-gray-300 hover:text-white hover:bg-gray-700'
+              }`}
+            >
+              <MessageSquare className="h-4 w-4 mr-2" />
+              DSA Chat
             </button>
             <button
               className="flex items-center px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-700 transition-colors"
